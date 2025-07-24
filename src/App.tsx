@@ -108,43 +108,69 @@ const roundTimeToGrid = (time: string): string => {
   return minutesToTime(roundedMinutes);
 };
 
+// Mapeo de módulos a horarios según la tabla
+const MODULE_TIMES: { [key: string]: { start: string; end: string } } = {
+  '1A': { start: '08:30', end: '09:40' },
+  '1B': { start: '08:45', end: '09:55' },
+  '2': { start: '10:15', end: '11:25' },
+  '3': { start: '11:45', end: '12:55' },
+  '4A': { start: '13:15', end: '14:25' },
+  '4B': { start: '14:00', end: '15:10' },
+  '5': { start: '15:30', end: '16:40' },
+  '6': { start: '17:00', end: '18:10' },
+  '7': { start: '18:30', end: '19:40' },
+  '8': { start: '20:00', end: '21:10' }
+};
+
+// Mapeo de días
+const DAY_MAPPING: { [key: string]: string } = {
+  'L': 'Lunes',
+  'M': 'Martes',
+  'W': 'Miércoles',
+  'J': 'Jueves',
+  'V': 'Viernes',
+  'S': 'Sábado'
+};
+
+const parseScheduleString = (scheduleStr: string): Array<{ day: string; module: string }> => {
+  const modules = scheduleStr.split('-');
+  const result = [];
+  
+  for (const module of modules) {
+    const dayLetter = module.charAt(0);
+    const moduleNumber = module.substring(1);
+    
+    if (DAY_MAPPING[dayLetter] && MODULE_TIMES[moduleNumber]) {
+      result.push({
+        day: DAY_MAPPING[dayLetter],
+        module: moduleNumber
+      });
+    }
+  }
+  
+  return result;
+};
+
 const generateScheduleEvents = (courses: Course[]): ScheduleEvent[] => {
   const events: ScheduleEvent[] = [];
 
   for (const course of courses) {
     try {
-      const dayList = course.days.split(',').map(d => d.trim());
-      const timeList = course.times.split(',').map(t => t.trim());
-
-      // Si hay más horarios que días, duplicar los días
-      const maxLength = Math.max(dayList.length, timeList.length);
-      const normalizedDays = [];
-      const normalizedTimes = [];
-
-      for (let i = 0; i < maxLength; i++) {
-        normalizedDays.push(dayList[i % dayList.length]);
-        normalizedTimes.push(timeList[i % timeList.length]);
-      }
-
-      for (let i = 0; i < normalizedDays.length; i++) {
-        const day = normalizeDayName(normalizedDays[i]);
-        const timeRange = normalizedTimes[i];
+      // Usar el campo schedule que contiene los módulos (ej: "M4A-M5-V3-V4A")
+      const scheduleModules = parseScheduleString(course.schedule);
+      
+      for (const scheduleModule of scheduleModules) {
+        const moduleTime = MODULE_TIMES[scheduleModule.module];
         
-        if (timeRange && timeRange.includes('-')) {
-          const [startTime, endTime] = timeRange.split('-').map(t => t.trim());
-          
-          // Redondear los horarios a la grilla de 30 minutos
-          const roundedStartTime = roundTimeToGrid(startTime);
-          const roundedEndTime = roundTimeToGrid(endTime);
-          
+        if (moduleTime) {
           events.push({
             courseCode: course.code,
             courseName: course.name,
             section: course.section,
             professor: course.professor,
-            day,
-            startTime: roundedStartTime,
-            endTime: roundedEndTime,
+            day: scheduleModule.day,
+            startTime: moduleTime.start,
+            endTime: moduleTime.end,
             hasConflict: false
           });
         }
@@ -245,7 +271,7 @@ const DataImporter: React.FC<DataImporterProps> = ({ onDataImport }) => {
 "TEI401","CAPSTONE PROJECT","1","FRANCISCO JAVIER DUQUE","M3-M4A","Martes","11:30-12:40, 13:00-14:10"
 "TICS331","INGENIERÍA DE SOFTWARE","1","MARÍA LORETO ARRIAGADA","W3-W4A","Miércoles","11:30-12:40, 13:00-14:10"
 "TICS312","SISTEMAS OPERATIVOS","1","MIGUEL ANDRÉS SOLÍS","L5-L6","Lunes","15:00-16:10, 16:30-17:40"
-"ECO216","FORMULACIÓN Y EVALUACIÓN DE PROYECTOS","1","HÉCTOR IVÁN ÁLVAREZ","M3-M4A-J2-J3","Martes,Jueves","11:30-12:40, 13:00-14:10, 10:00-11:10, 11:30-12:40"`;
+"ECO216","FORMULACIÓN Y EVALUACIÓN DE PROYECTOS","3","CLAUDIO ANDRÉS JIMÉNEZ","M4A-M5-V3-V4A","Martes-Viernes","13:00-14:10, 15:00-16:10, 11:30-12:40, 13:00-14:10"`;
 
   const handleImport = () => {
     if (textData.trim()) {
@@ -280,7 +306,7 @@ const DataImporter: React.FC<DataImporterProps> = ({ onDataImport }) => {
       
       <div className="mb-4">
         <label className="block text-sm font-medium text-gray-700 mb-2">
-          Formato: Código,Nombre del Ramo,Sección,Profesor,Horario,Días,Horas
+          Formato: Código,Nombre del Ramo,Sección,Profesor,Módulos (ej: M4A-M5-V3),Días,Horas
         </label>
         <textarea
           className="w-full h-32 p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
@@ -414,11 +440,13 @@ interface ScheduleGridProps {
 
 const DAYS = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
 const HOURS = [
-  '08:00', '08:30', '09:00', '09:30', '10:00', '10:30',
-  '11:00', '11:30', '12:00', '12:30', '13:00', '13:30',
-  '14:00', '14:30', '15:00', '15:30', '16:00', '16:30',
-  '17:00', '17:30', '18:00', '18:30', '19:00', '19:30',
-  '20:00', '20:30', '21:00', '21:30'
+  '08:30', '08:45', '09:00', '09:30', '09:40', '09:55',
+  '10:00', '10:15', '10:30', '11:00', '11:25', '11:30',
+  '11:45', '12:00', '12:30', '12:55', '13:00', '13:15',
+  '13:30', '14:00', '14:25', '14:30', '15:00', '15:10',
+  '15:30', '16:00', '16:30', '16:40', '17:00', '17:30',
+  '18:00', '18:10', '18:30', '19:00', '19:30', '19:40',
+  '20:00', '20:30', '21:00', '21:10'
 ];
 
 const ScheduleGrid: React.FC<ScheduleGridProps> = ({ events }) => {
@@ -552,47 +580,65 @@ function App() {
 
         {courses.length > 0 && (
           <div className="mb-6">
-            <h3 className="text-lg font-semibold mb-4">Cursos Disponibles</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
-              {courses.map((course, index) => {
-                const isSelected = selectedCourses.some(
-                  c => c.code === course.code && c.section === course.section
-                );
-                return (
-                  <div
-                    key={`${course.code}-${course.section}-${index}`}
-                    className={`p-4 rounded-lg border cursor-pointer transition-all ${
-                      isSelected
-                        ? 'bg-blue-100 border-blue-500 shadow-md'
-                        : 'bg-white border-gray-200 hover:border-blue-300 hover:shadow-sm'
-                    }`}
-                    onClick={() => handleCourseSelect(course)}
-                  >
-                    <div className="font-semibold text-gray-900">{course.name}</div>
-                    <div className="text-sm text-gray-600">
-                      {course.code} - Sección {course.section}
-                    </div>
-                    <div className="text-sm text-gray-500 mt-1">
-                      Prof: {course.professor}
-                    </div>
-                    <div className="text-xs text-gray-400 mt-2">
-                      {course.days} - {course.times}
-                    </div>
-                  </div>
-                );
-              })}
+            <h3 className="text-lg font-semibold mb-4">Seleccionar Cursos</h3>
+            <div className="bg-white rounded-lg shadow-md p-4">
+              <select
+                className="w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-700"
+                onChange={(e) => {
+                  if (e.target.value) {
+                    const courseIndex = parseInt(e.target.value);
+                    const course = courses[courseIndex];
+                    handleCourseSelect(course);
+                    e.target.value = ''; // Reset dropdown
+                  }
+                }}
+                defaultValue=""
+              >
+                <option value="" disabled>
+                  Selecciona un curso para agregar...
+                </option>
+                {courses.map((course, index) => {
+                  const isSelected = selectedCourses.some(
+                    c => c.code === course.code && c.section === course.section
+                  );
+                  return (
+                    <option
+                      key={`${course.code}-${course.section}-${index}`}
+                      value={index}
+                      disabled={isSelected}
+                    >
+                      {course.name} - Sección {course.section}
+                      {isSelected ? ' (Seleccionado)' : ''}
+                    </option>
+                  );
+                })}
+              </select>
+              
+
             </div>
           </div>
         )}
 
         <div className="flex flex-col lg:flex-row gap-6 mb-6">
           <Legend />
-          <button
-            onClick={handleClearSchedule}
-            className="bg-red-500 hover:bg-red-600 text-white px-6 py-2 rounded-lg transition-colors"
-          >
-            Limpiar Horario
-          </button>
+          <div className="flex gap-3">
+            <button
+              onClick={handleClearSchedule}
+              className="bg-red-500 hover:bg-red-600 text-white px-6 py-2 rounded-lg transition-colors"
+            >
+              Limpiar Horario
+            </button>
+            <button
+              onClick={() => {
+                setCourses([]);
+                setSelectedCourses([]);
+                setScheduleEvents([]);
+              }}
+              className="bg-gray-500 hover:bg-gray-600 text-white px-6 py-2 rounded-lg transition-colors"
+            >
+              Limpiar Datos
+            </button>
+          </div>
         </div>
 
         <div className="bg-white rounded-lg shadow-lg p-6">
