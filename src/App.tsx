@@ -516,7 +516,7 @@ const ScheduleGrid: React.FC<ScheduleGridProps> = ({ events }) => {
   };
 
   // Calcular la altura disponible para la grilla
-  const availableHeight = `calc(100vh - 1rem)`; // Restar aproximadamente 8rem para header y controles
+  const availableHeight = `calc(100vh - 16rem)`; // Restar aproximadamente 16rem para header y controles
 
   return (
     <div className="overflow-x-auto overflow-y-auto" style={{ maxHeight: availableHeight }}>
@@ -579,11 +579,58 @@ const ScheduleGrid: React.FC<ScheduleGridProps> = ({ events }) => {
   );
 };
 
+// Función para generar todas las combinaciones válidas
+const generateAllValidCombinations = (courses: Course[]): Course[][] => {
+  if (courses.length === 0) return [];
+
+  // Agrupar cursos por código de materia
+  const coursesByCode: { [key: string]: Course[] } = {};
+  courses.forEach(course => {
+    if (!coursesByCode[course.code]) {
+      coursesByCode[course.code] = [];
+    }
+    coursesByCode[course.code].push(course);
+  });
+
+  const courseCodes = Object.keys(coursesByCode);
+  const validCombinations: Course[][] = [];
+
+  // Generar todas las combinaciones posibles
+  const generateCombinations = (index: number, currentCombination: Course[]) => {
+    if (index === courseCodes.length) {
+      // Verificar si esta combinación no tiene conflictos
+      const events = generateScheduleEvents(currentCombination);
+      const eventsWithConflicts = detectConflicts(events);
+      const hasConflicts = eventsWithConflicts.some(event => event.hasConflict);
+      
+      if (!hasConflicts) {
+        validCombinations.push([...currentCombination]);
+      }
+      return;
+    }
+
+    const courseCode = courseCodes[index];
+    const availableSections = coursesByCode[courseCode];
+
+    for (const section of availableSections) {
+      currentCombination.push(section);
+      generateCombinations(index + 1, currentCombination);
+      currentCombination.pop();
+    }
+  };
+
+  generateCombinations(0, []);
+  return validCombinations;
+};
+
 // Main App
 function App() {
   const [courses, setCourses] = useState<Course[]>([]);
   const [selectedCourses, setSelectedCourses] = useState<Course[]>([]);
   const [scheduleEvents, setScheduleEvents] = useState<ScheduleEvent[]>([]);
+  const [validCombinations, setValidCombinations] = useState<Course[][]>([]);
+  const [selectedCombinationIndex, setSelectedCombinationIndex] = useState<number>(-1);
+  const [showCombinations, setShowCombinations] = useState<boolean>(false);
 
   const handleDataImport = (csvData: string) => {
     try {
@@ -615,11 +662,19 @@ function App() {
     console.log('Generated events:', events);
     const eventsWithConflicts = detectConflicts(events);
     setScheduleEvents(eventsWithConflicts);
+    
+    // Resetear el modo de combinaciones cuando se selecciona manualmente
+    setShowCombinations(false);
+    setValidCombinations([]);
+    setSelectedCombinationIndex(-1);
   };
 
   const handleClearSchedule = () => {
     setSelectedCourses([]);
     setScheduleEvents([]);
+    setShowCombinations(false);
+    setValidCombinations([]);
+    setSelectedCombinationIndex(-1);
   };
 
   const handleRecommendSchedule = () => {
@@ -648,6 +703,11 @@ function App() {
     } else {
       alert(`Se generó la mejor combinación posible con ${conflictCount} conflictos mínimos.`);
     }
+    
+    // Resetear el modo de combinaciones
+    setShowCombinations(false);
+    setValidCombinations([]);
+    setSelectedCombinationIndex(-1);
   };
 
   return (
@@ -702,13 +762,22 @@ function App() {
           <Legend />
           <div className="flex gap-3 flex-wrap">
             {courses.length > 0 && (
-              <button
-                onClick={handleRecommendSchedule}
-                className="bg-emerald-600 hover:bg-emerald-700 text-white px-6 py-2 rounded-lg transition-colors flex items-center gap-2"
-              >
-                <Shuffle size={16} />
-                Recomendar Horario
-              </button>
+              <>
+                <button
+                  onClick={handleRecommendSchedule}
+                  className="bg-emerald-600 hover:bg-emerald-700 text-white px-6 py-2 rounded-lg transition-colors flex items-center gap-2"
+                >
+                  <Shuffle size={16} />
+                  Recomendar Horario
+                </button>
+                <button
+                  onClick={handleSimulateCombinations}
+                  className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg transition-colors flex items-center gap-2"
+                >
+                  <GraduationCap size={16} />
+                  Simulador de Combinaciones
+                </button>
+              </>
             )}
             <button
               onClick={handleClearSchedule}
@@ -721,6 +790,9 @@ function App() {
                 setCourses([]);
                 setSelectedCourses([]);
                 setScheduleEvents([]);
+                setShowCombinations(false);
+                setValidCombinations([]);
+                setSelectedCombinationIndex(-1);
               }}
               className="bg-gray-500 hover:bg-gray-600 text-white px-6 py-2 rounded-lg transition-colors"
             >
@@ -730,7 +802,27 @@ function App() {
         </div>
 
         <div className="bg-white rounded-lg shadow-lg p-4 flex-1 flex flex-col">
-          <h2 className="text-xl font-bold mb-3">Mi Horario</h2>
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="text-xl font-bold">Mi Horario</h2>
+            {showCombinations && validCombinations.length > 0 && (
+              <div className="flex items-center gap-3">
+                <span className="text-sm text-gray-600">
+                  Combinación válida:
+                </span>
+                <select
+                  value={selectedCombinationIndex}
+                  onChange={(e) => handleCombinationSelect(parseInt(e.target.value))}
+                  className="border border-gray-300 rounded-md px-3 py-1 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                >
+                  {validCombinations.map((_, index) => (
+                    <option key={index} value={index}>
+                      Opción {index + 1} de {validCombinations.length}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+          </div>
           <div className="flex-1">
             <ScheduleGrid events={scheduleEvents} />
           </div>
