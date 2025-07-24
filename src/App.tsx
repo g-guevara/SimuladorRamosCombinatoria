@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Upload, FileText, GraduationCap } from 'lucide-react';
+import { Upload, FileText, GraduationCap, Shuffle } from 'lucide-react';
 
 // Types
 interface Course {
@@ -208,6 +208,55 @@ const detectConflicts = (events: ScheduleEvent[]): ScheduleEvent[] => {
   }
 
   return eventsWithConflicts;
+};
+
+// Función para recomendar horarios sin conflictos
+const recommendSchedule = (courses: Course[]): Course[] => {
+  if (courses.length === 0) return [];
+
+  // Agrupar cursos por código de materia
+  const coursesByCode: { [key: string]: Course[] } = {};
+  courses.forEach(course => {
+    if (!coursesByCode[course.code]) {
+      coursesByCode[course.code] = [];
+    }
+    coursesByCode[course.code].push(course);
+  });
+
+  const courseCodes = Object.keys(coursesByCode);
+  
+  // Intentar múltiples combinaciones aleatorias
+  const maxAttempts = 100;
+  let bestSchedule: Course[] = [];
+  let minConflicts = Infinity;
+
+  for (let attempt = 0; attempt < maxAttempts; attempt++) {
+    const currentSchedule: Course[] = [];
+    
+    // Para cada materia, seleccionar una sección aleatoria
+    for (const courseCode of courseCodes) {
+      const availableSections = coursesByCode[courseCode];
+      const randomSection = availableSections[Math.floor(Math.random() * availableSections.length)];
+      currentSchedule.push(randomSection);
+    }
+
+    // Evaluar conflictos en esta combinación
+    const events = generateScheduleEvents(currentSchedule);
+    const eventsWithConflicts = detectConflicts(events);
+    const conflictCount = eventsWithConflicts.filter(event => event.hasConflict).length;
+
+    if (conflictCount < minConflicts) {
+      minConflicts = conflictCount;
+      bestSchedule = [...currentSchedule];
+      
+      // Si encontramos un horario sin conflictos, lo devolvemos inmediatamente
+      if (conflictCount === 0) {
+        break;
+      }
+    }
+  }
+
+  return bestSchedule;
 };
 
 // Components
@@ -569,6 +618,34 @@ function App() {
     setScheduleEvents([]);
   };
 
+  const handleRecommendSchedule = () => {
+    if (courses.length === 0) {
+      alert('Primero debes importar datos de cursos para poder generar recomendaciones.');
+      return;
+    }
+
+    const recommendedCourses = recommendSchedule(courses);
+    
+    if (recommendedCourses.length === 0) {
+      alert('No se pudo generar una recomendación de horario. Verifica que tengas cursos disponibles.');
+      return;
+    }
+
+    setSelectedCourses(recommendedCourses);
+    
+    const events = generateScheduleEvents(recommendedCourses);
+    const eventsWithConflicts = detectConflicts(events);
+    setScheduleEvents(eventsWithConflicts);
+
+    const conflictCount = eventsWithConflicts.filter(event => event.hasConflict).length;
+    
+    if (conflictCount === 0) {
+      alert('¡Excelente! Se generó un horario sin conflictos.');
+    } else {
+      alert(`Se generó la mejor combinación posible con ${conflictCount} conflictos mínimos.`);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gray-50">
       <Header />
@@ -613,15 +690,22 @@ function App() {
                   );
                 })}
               </select>
-              
-
             </div>
           </div>
         )}
 
         <div className="flex flex-col lg:flex-row gap-6 mb-6">
           <Legend />
-          <div className="flex gap-3">
+          <div className="flex gap-3 flex-wrap">
+            {courses.length > 0 && (
+              <button
+                onClick={handleRecommendSchedule}
+                className="bg-emerald-600 hover:bg-emerald-700 text-white px-6 py-2 rounded-lg transition-colors flex items-center gap-2"
+              >
+                <Shuffle size={16} />
+                Recomendar Horario
+              </button>
+            )}
             <button
               onClick={handleClearSchedule}
               className="bg-red-500 hover:bg-red-600 text-white px-6 py-2 rounded-lg transition-colors"
@@ -645,6 +729,28 @@ function App() {
           <h2 className="text-xl font-bold mb-4">Mi Horario</h2>
           <ScheduleGrid events={scheduleEvents} />
         </div>
+        
+        {selectedCourses.length > 0 && (
+          <div className="mt-6 bg-white rounded-lg shadow-lg p-6">
+            <h3 className="text-lg font-bold mb-4">Cursos Seleccionados</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {selectedCourses.map((course, index) => (
+                <div key={`${course.code}-${course.section}-${index}`} className="border border-gray-200 rounded-lg p-4">
+                  <div className="font-semibold text-blue-800">{course.code}</div>
+                  <div className="text-sm text-gray-700 mb-1">{course.name}</div>
+                  <div className="text-xs text-gray-600">Sección {course.section}</div>
+                  <div className="text-xs text-gray-600">Prof: {course.professor}</div>
+                  <button
+                    onClick={() => handleCourseSelect(course)}
+                    className="mt-2 text-xs bg-red-500 hover:bg-red-600 text-white px-2 py-1 rounded transition-colors"
+                  >
+                    Remover
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
