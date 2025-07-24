@@ -452,8 +452,8 @@ const ScheduleEventComponent: React.FC<ScheduleEventProps> = ({ event }) => {
         onMouseEnter={() => setShowTooltip(true)}
         onMouseLeave={() => setShowTooltip(false)}
       >
-        <div className="font-semibold truncate">{event.courseCode}</div>
-        <div className="text-xs opacity-90 truncate">{event.courseName}</div>
+        <div className="font-semibold truncate text-xs">{event.courseCode}</div>
+        <div className="text-xs opacity-90 truncate leading-tight">{event.courseName}</div>
         <div className="text-xs opacity-75">Sec. {event.section}</div>
       </div>
 
@@ -515,21 +515,25 @@ const ScheduleGrid: React.FC<ScheduleGridProps> = ({ events }) => {
     };
   };
 
+  // Calcular la altura disponible para la grilla
+  const availableHeight = `calc(100vh - 1rem)`; // Restar aproximadamente 8rem para header y controles
+
   return (
-    <div className="overflow-x-auto">
+    <div className="overflow-x-auto overflow-y-auto" style={{ maxHeight: availableHeight }}>
       <div 
         className="grid min-w-[800px]"
         style={{
           gridTemplateColumns: 'auto repeat(6, 1fr)',
-          gridTemplateRows: `auto repeat(${HOURS.length}, 32px)`
+          gridTemplateRows: `auto repeat(${HOURS.length}, minmax(20px, 1fr))`,
+          height: availableHeight
         }}
       >
         {/* Header */}
-        <div className="border-b border-gray-200 p-2"></div>
+        <div className="border-b border-gray-200 p-1 sticky top-0 bg-white z-20"></div>
         {DAYS.map((day) => (
           <div
             key={day}
-            className="border-b border-gray-200 p-2 text-center font-semibold bg-gray-50"
+            className="border-b border-gray-200 p-1 text-center font-semibold bg-gray-50 text-sm sticky top-0 z-20"
           >
             {day}
           </div>
@@ -538,7 +542,7 @@ const ScheduleGrid: React.FC<ScheduleGridProps> = ({ events }) => {
         {/* Time labels and grid */}
         {HOURS.map((hour, hourIndex) => (
           <React.Fragment key={hour}>
-            <div className="border-r border-gray-200 p-2 text-xs text-gray-600 text-right pr-4">
+            <div className="border-r border-gray-200 p-1 text-xs text-gray-600 text-right pr-2 sticky left-0 bg-white z-10">
               {hour}
             </div>
             {DAYS.map((day, dayIndex) => (
@@ -562,7 +566,7 @@ const ScheduleGrid: React.FC<ScheduleGridProps> = ({ events }) => {
               style={{
                 gridColumn: position.gridColumn,
                 gridRow: position.gridRow,
-                zIndex: 10
+                zIndex: 30
               }}
               className="relative p-1"
             >
@@ -647,10 +651,10 @@ function App() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 flex flex-col">
       <Header />
       
-      <div className="container mx-auto px-4 py-6">
+      <div className="container mx-auto px-4 py-6 flex-1 flex flex-col">
         <div className="mb-6">
           <DataImporter onDataImport={handleDataImport} />
         </div>
@@ -725,9 +729,11 @@ function App() {
           </div>
         </div>
 
-        <div className="bg-white rounded-lg shadow-lg p-6">
-          <h2 className="text-xl font-bold mb-4">Mi Horario</h2>
-          <ScheduleGrid events={scheduleEvents} />
+        <div className="bg-white rounded-lg shadow-lg p-4 flex-1 flex flex-col">
+          <h2 className="text-xl font-bold mb-3">Mi Horario</h2>
+          <div className="flex-1">
+            <ScheduleGrid events={scheduleEvents} />
+          </div>
         </div>
         
         {selectedCourses.length > 0 && (
