@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Shuffle, GraduationCap, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Shuffle, GraduationCap, ChevronLeft, ChevronRight, X, Check } from 'lucide-react';
 import { Course, ScheduleEvent } from './types';
 import { 
   parseCourseData, 
@@ -23,6 +23,8 @@ function App() {
   const [validCombinations, setValidCombinations] = useState<Course[][]>([]);
   const [selectedCombinationIndex, setSelectedCombinationIndex] = useState<number>(-1);
   const [showCombinations, setShowCombinations] = useState<boolean>(false);
+  const [showFixedCoursesModal, setShowFixedCoursesModal] = useState<boolean>(false);
+  const [fixedCourses, setFixedCourses] = useState<Course[]>([]);
 
   const handleDataImport = (csvData: string) => {
     try {
@@ -59,6 +61,7 @@ function App() {
     setShowCombinations(false);
     setValidCombinations([]);
     setSelectedCombinationIndex(-1);
+    setFixedCourses([]);
   };
 
   const handleClearSchedule = () => {
@@ -67,6 +70,7 @@ function App() {
     setShowCombinations(false);
     setValidCombinations([]);
     setSelectedCombinationIndex(-1);
+    setFixedCourses([]);
   };
 
   const handleRecommendSchedule = () => {
@@ -100,6 +104,7 @@ function App() {
     setShowCombinations(false);
     setValidCombinations([]);
     setSelectedCombinationIndex(-1);
+    setFixedCourses([]);
   };
 
   // Nueva función para manejar la simulación de combinaciones
@@ -109,8 +114,31 @@ function App() {
       return;
     }
 
-    console.log('Generando combinaciones válidas...');
-    const combinations = generateAllValidCombinations(courses);
+    // Mostrar el modal para seleccionar cursos fijos
+    setShowFixedCoursesModal(true);
+  };
+
+  // Función para manejar la selección de cursos fijos
+  const handleFixedCourseToggle = (course: Course) => {
+    const isAlreadyFixed = fixedCourses.some(
+      c => c.code === course.code && c.section === course.section
+    );
+
+    if (isAlreadyFixed) {
+      setFixedCourses(fixedCourses.filter(
+        c => !(c.code === course.code && c.section === course.section)
+      ));
+    } else {
+      setFixedCourses([...fixedCourses, course]);
+    }
+  };
+
+  // Función para proceder con la simulación después de seleccionar cursos fijos
+  const handleProceedWithSimulation = () => {
+    setShowFixedCoursesModal(false);
+
+    console.log('Generando combinaciones válidas con cursos fijos:', fixedCourses);
+    const combinations = generateAllValidCombinations(courses, fixedCourses);
     
     if (combinations.length === 0) {
       alert('No se encontraron combinaciones válidas sin conflictos. Intenta con otros cursos o revisa los horarios.');
@@ -157,6 +185,117 @@ function App() {
     if (selectedCombinationIndex < validCombinations.length - 1) {
       handleCombinationSelect(selectedCombinationIndex + 1);
     }
+  };
+
+  // Componente Modal para seleccionar cursos fijos
+  const FixedCoursesModal = () => {
+    if (!showFixedCoursesModal) return null;
+
+    // Agrupar cursos por código para mostrar las opciones disponibles
+    const coursesByCode: { [key: string]: Course[] } = {};
+    courses.forEach(course => {
+      if (!coursesByCode[course.code]) {
+        coursesByCode[course.code] = [];
+      }
+      coursesByCode[course.code].push(course);
+    });
+
+    return (
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full mx-4 max-h-[80vh] overflow-hidden">
+          <div className="flex items-center justify-between p-6 border-b border-gray-200">
+            <h2 className="text-xl font-bold text-gray-900">
+              Seleccionar Cursos Fijos
+            </h2>
+            <button
+              onClick={() => setShowFixedCoursesModal(false)}
+              className="text-gray-400 hover:text-gray-600 transition-colors"
+            >
+              <X size={24} />
+            </button>
+          </div>
+          
+          <div className="p-6 overflow-y-auto max-h-[60vh]">
+            <p className="text-sm text-gray-600 mb-4">
+              Selecciona los cursos que quieres incluir <strong>obligatoriamente</strong> en todas las combinaciones. 
+              Estos cursos no participarán en la combinatoria automática.
+            </p>
+            
+            <div className="space-y-4">
+              {Object.entries(coursesByCode).map(([courseCode, courseSections]) => (
+                <div key={courseCode} className="border border-gray-200 rounded-lg p-4">
+                  <h3 className="font-semibold text-gray-900 mb-3">
+                    {courseCode} - {courseSections[0].name}
+                  </h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
+                    {courseSections.map((course, index) => {
+                      const isSelected = fixedCourses.some(
+                        c => c.code === course.code && c.section === course.section
+                      );
+                      
+                      return (
+                        <label
+                          key={`${course.code}-${course.section}-${index}`}
+                          className={`
+                            flex items-center p-3 rounded-md border cursor-pointer transition-all
+                            ${isSelected 
+                              ? 'bg-blue-50 border-blue-300 text-blue-900' 
+                              : 'bg-gray-50 border-gray-200 hover:bg-gray-100'
+                            }
+                          `}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={isSelected}
+                            onChange={() => handleFixedCourseToggle(course)}
+                            className="mr-3 h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                          />
+                          <div className="flex-1 min-w-0">
+                            <div className="text-sm font-medium">
+                              Sección {course.section}
+                            </div>
+                            <div className="text-xs text-gray-600 truncate">
+                              Prof: {course.professor}
+                            </div>
+                            <div className="text-xs text-gray-500">
+                              {course.schedule}
+                            </div>
+                          </div>
+                          {isSelected && (
+                            <Check size={16} className="text-blue-600 ml-2" />
+                          )}
+                        </label>
+                      );
+                    })}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+          
+          <div className="flex items-center justify-between p-6 border-t border-gray-200 bg-gray-50">
+            <div className="text-sm text-gray-600">
+              {fixedCourses.length} curso{fixedCourses.length !== 1 ? 's' : ''} fijo{fixedCourses.length !== 1 ? 's' : ''} seleccionado{fixedCourses.length !== 1 ? 's' : ''}
+            </div>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowFixedCoursesModal(false)}
+                className="px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 transition-colors"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleProceedWithSimulation}
+                className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md transition-colors flex items-center gap-2"
+              >
+                <GraduationCap size={16} />
+                Generar Combinaciones
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
   };
 
   return (
@@ -242,6 +381,7 @@ function App() {
                 setShowCombinations(false);
                 setValidCombinations([]);
                 setSelectedCombinationIndex(-1);
+                setFixedCourses([]);
               }}
               className="bg-gray-500 hover:bg-gray-600 text-white px-6 py-2 rounded-lg transition-colors"
             >
@@ -319,6 +459,9 @@ function App() {
           </div>
         )}
       </div>
+      
+      {/* Modal de cursos fijos */}
+      <FixedCoursesModal />
     </div>
   );
 }
