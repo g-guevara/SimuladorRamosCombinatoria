@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Shuffle, GraduationCap } from 'lucide-react';
+import { Shuffle, GraduationCap, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Course, ScheduleEvent } from './types';
 import { 
   parseCourseData, 
@@ -146,6 +146,19 @@ function App() {
     }
   };
 
+  // Funciones para navegar entre combinaciones
+  const handlePreviousCombination = () => {
+    if (selectedCombinationIndex > 0) {
+      handleCombinationSelect(selectedCombinationIndex - 1);
+    }
+  };
+
+  const handleNextCombination = () => {
+    if (selectedCombinationIndex < validCombinations.length - 1) {
+      handleCombinationSelect(selectedCombinationIndex + 1);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
       <Header />
@@ -245,17 +258,37 @@ function App() {
                 <span className="text-sm text-gray-600">
                   Combinación válida:
                 </span>
-                <select
-                  value={selectedCombinationIndex}
-                  onChange={(e) => handleCombinationSelect(parseInt(e.target.value))}
-                  className="border border-gray-300 rounded-md px-3 py-1 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                >
-                  {validCombinations.map((_, index) => (
-                    <option key={index} value={index}>
-                      Opción {index + 1} de {validCombinations.length}
-                    </option>
-                  ))}
-                </select>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={handlePreviousCombination}
+                    disabled={selectedCombinationIndex <= 0}
+                    className="p-1 rounded-md border border-gray-300 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    title="Combinación anterior"
+                  >
+                    <ChevronLeft size={16} />
+                  </button>
+                  
+                  <select
+                    value={selectedCombinationIndex}
+                    onChange={(e) => handleCombinationSelect(parseInt(e.target.value))}
+                    className="border border-gray-300 rounded-md px-3 py-1 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  >
+                    {validCombinations.map((_, index) => (
+                      <option key={index} value={index}>
+                        Opción {index + 1} de {validCombinations.length}
+                      </option>
+                    ))}
+                  </select>
+                  
+                  <button
+                    onClick={handleNextCombination}
+                    disabled={selectedCombinationIndex >= validCombinations.length - 1}
+                    className="p-1 rounded-md border border-gray-300 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    title="Combinación siguiente"
+                  >
+                    <ChevronRight size={16} />
+                  </button>
+                </div>
               </div>
             )}
           </div>
