@@ -75,22 +75,6 @@ const parseCourseData = (csvData: string): Course[] => {
   return courses;
 };
 
-const normalizeDayName = (day: string): string => {
-  const dayMap: { [key: string]: string } = {
-    'lunes': 'Lunes',
-    'martes': 'Martes',
-    'miércoles': 'Miércoles',
-    'miercoles': 'Miércoles',
-    'jueves': 'Jueves',
-    'viernes': 'Viernes',
-    'sábado': 'Sábado',
-    'sabado': 'Sábado',
-    'domingo': 'Domingo'
-  };
-
-  return dayMap[day.toLowerCase()] || day;
-};
-
 const timeToMinutes = (time: string): number => {
   const [hours, minutes] = time.split(':').map(Number);
   return hours * 60 + minutes;
@@ -100,12 +84,6 @@ const minutesToTime = (minutes: number): string => {
   const hours = Math.floor(minutes / 60);
   const mins = minutes % 60;
   return `${hours.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}`;
-};
-
-const roundTimeToGrid = (time: string): string => {
-  const minutes = timeToMinutes(time);
-  const roundedMinutes = Math.round(minutes / 30) * 30;
-  return minutesToTime(roundedMinutes);
 };
 
 // Mapeo de módulos a horarios según la tabla
@@ -257,6 +235,54 @@ const recommendSchedule = (courses: Course[]): Course[] => {
   }
 
   return bestSchedule;
+};
+
+// Función para generar todas las combinaciones válidas
+const generateAllValidCombinations = (courses: Course[]): Course[][] => {
+  if (courses.length === 0) return [];
+
+  // Agrupar cursos por código de materia
+  const coursesByCode: { [key: string]: Course[] } = {};
+  courses.forEach(course => {
+    if (!coursesByCode[course.code]) {
+      coursesByCode[course.code] = [];
+    }
+    coursesByCode[course.code].push(course);
+  });
+
+  const courseCodes = Object.keys(coursesByCode);
+  const validCombinations: Course[][] = [];
+
+  // Generar todas las combinaciones posibles (con límite para evitar demasiadas combinaciones)
+  const maxCombinations = 1000;
+  
+  const generateCombinations = (index: number, currentCombination: Course[]) => {
+    if (validCombinations.length >= maxCombinations) return;
+    
+    if (index === courseCodes.length) {
+      // Verificar si esta combinación no tiene conflictos
+      const events = generateScheduleEvents(currentCombination);
+      const eventsWithConflicts = detectConflicts(events);
+      const hasConflicts = eventsWithConflicts.some(event => event.hasConflict);
+      
+      if (!hasConflicts) {
+        validCombinations.push([...currentCombination]);
+      }
+      return;
+    }
+
+    const courseCode = courseCodes[index];
+    const availableSections = coursesByCode[courseCode];
+
+    for (const section of availableSections) {
+      currentCombination.push(section);
+      generateCombinations(index + 1, currentCombination);
+      currentCombination.pop();
+    }
+  };
+
+  generateCombinations(0, []);
+  return validCombinations;
 };
 
 // Components
@@ -579,50 +605,6 @@ const ScheduleGrid: React.FC<ScheduleGridProps> = ({ events }) => {
   );
 };
 
-// Función para generar todas las combinaciones válidas
-const generateAllValidCombinations = (courses: Course[]): Course[][] => {
-  if (courses.length === 0) return [];
-
-  // Agrupar cursos por código de materia
-  const coursesByCode: { [key: string]: Course[] } = {};
-  courses.forEach(course => {
-    if (!coursesByCode[course.code]) {
-      coursesByCode[course.code] = [];
-    }
-    coursesByCode[course.code].push(course);
-  });
-
-  const courseCodes = Object.keys(coursesByCode);
-  const validCombinations: Course[][] = [];
-
-  // Generar todas las combinaciones posibles
-  const generateCombinations = (index: number, currentCombination: Course[]) => {
-    if (index === courseCodes.length) {
-      // Verificar si esta combinación no tiene conflictos
-      const events = generateScheduleEvents(currentCombination);
-      const eventsWithConflicts = detectConflicts(events);
-      const hasConflicts = eventsWithConflicts.some(event => event.hasConflict);
-      
-      if (!hasConflicts) {
-        validCombinations.push([...currentCombination]);
-      }
-      return;
-    }
-
-    const courseCode = courseCodes[index];
-    const availableSections = coursesByCode[courseCode];
-
-    for (const section of availableSections) {
-      currentCombination.push(section);
-      generateCombinations(index + 1, currentCombination);
-      currentCombination.pop();
-    }
-  };
-
-  generateCombinations(0, []);
-  return validCombinations;
-};
-
 // Main App
 function App() {
   const [courses, setCourses] = useState<Course[]>([]);
@@ -708,6 +690,50 @@ function App() {
     setShowCombinations(false);
     setValidCombinations([]);
     setSelectedCombinationIndex(-1);
+  };
+
+  // Nueva función para manejar la simulación de combinaciones
+  const handleSimulateCombinations = () => {
+    if (courses.length === 0) {
+      alert('Primero debes importar datos de cursos para poder simular combinaciones.');
+      return;
+    }
+
+    console.log('Generando combinaciones válidas...');
+    const combinations = generateAllValidCombinations(courses);
+    
+    if (combinations.length === 0) {
+      alert('No se encontraron combinaciones válidas sin conflictos. Intenta con otros cursos o revisa los horarios.');
+      return;
+    }
+
+    setValidCombinations(combinations);
+    setShowCombinations(true);
+    setSelectedCombinationIndex(0);
+    
+    // Mostrar la primera combinación
+    const firstCombination = combinations[0];
+    setSelectedCourses(firstCombination);
+    
+    const events = generateScheduleEvents(firstCombination);
+    const eventsWithConflicts = detectConflicts(events);
+    setScheduleEvents(eventsWithConflicts);
+
+    alert(`¡Encontradas ${combinations.length} combinaciones válidas sin conflictos! Usa el selector para navegar entre ellas.`);
+  };
+
+  // Nueva función para manejar la selección de combinaciones
+  const handleCombinationSelect = (combinationIndex: number) => {
+    if (combinationIndex >= 0 && combinationIndex < validCombinations.length) {
+      setSelectedCombinationIndex(combinationIndex);
+      
+      const selectedCombination = validCombinations[combinationIndex];
+      setSelectedCourses(selectedCombination);
+      
+      const events = generateScheduleEvents(selectedCombination);
+      const eventsWithConflicts = detectConflicts(events);
+      setScheduleEvents(eventsWithConflicts);
+    }
   };
 
   return (
