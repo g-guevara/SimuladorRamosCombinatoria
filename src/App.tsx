@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState, FC } from 'react';
 import { Shuffle, GraduationCap, ChevronLeft, ChevronRight, X, Check } from 'lucide-react';
 import { Course, ScheduleEvent } from './types';
 import { 

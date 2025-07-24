@@ -1,9 +1,9 @@
-import React, { useState } from 'react';
-import { Upload, FileText, GraduationCap } from 'lucide-react';
+import { useState, FC, Fragment } from 'react';
+import { Upload, FileText, GraduationCap, HelpCircle, X } from 'lucide-react';
 import { ScheduleEvent, DAYS, HOURS } from './types';
 
 // Header Component
-export const Header: React.FC = () => {
+export const Header: FC = () => {
   return (
     <div className="bg-gradient-to-r from-blue-900 to-blue-800 text-white shadow-lg">
       <div className="container mx-auto px-4 py-6">
@@ -26,7 +26,7 @@ export const Header: React.FC = () => {
 };
 
 // Legend Component
-export const Legend: React.FC = () => {
+export const Legend: FC = () => {
   return (
     <div className="flex flex-wrap gap-4 items-center">
       <div className="flex items-center gap-2">
@@ -56,9 +56,10 @@ interface DataImporterProps {
   onDataImport: (data: string) => void;
 }
 
-export const DataImporter: React.FC<DataImporterProps> = ({ onDataImport }) => {
+export const DataImporter: FC<DataImporterProps> = ({ onDataImport }) => {
   const [textData, setTextData] = useState('');
   const [showExample, setShowExample] = useState(false);
+  const [showHelpModal, setShowHelpModal] = useState(false);
 
   const exampleData = `"TICS400","ARQUITECTURA CLOUD","1","NICOLÁS IGNACIO CENZANO","L3-L4A-L7","Lunes","11:30-12:40, 13:00-14:10, 18:00-19:10"
 "TICS400","ARQUITECTURA CLOUD","2","NICOLÁS IGNACIO CENZANO","W5-W6-W7","Miércoles","15:00-16:10, 16:30-17:40, 18:00-19:10"
@@ -91,12 +92,154 @@ export const DataImporter: React.FC<DataImporterProps> = ({ onDataImport }) => {
     onDataImport(exampleData);
   };
 
+  // Componente Modal de Ayuda
+  const HelpModal = () => {
+    if (!showHelpModal) return null;
+
+    return (
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div className="bg-white rounded-lg shadow-xl max-w-6xl w-full mx-4 max-h-[90vh] overflow-hidden">
+          <div className="flex items-center justify-between p-6 border-b border-gray-200">
+            <h2 className="text-2xl font-bold text-gray-900">
+              Cómo Importar Datos de Cursos
+            </h2>
+            <button
+              onClick={() => setShowHelpModal(false)}
+              className="text-gray-400 hover:text-gray-600 transition-colors"
+            >
+              <X size={24} />
+            </button>
+          </div>
+          
+          <div className="p-8 overflow-y-auto">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+              
+              {/* Paso 1 */}
+              <div className="text-center">
+                <div className="mb-6">
+                  <div className="inline-flex items-center justify-center w-16 h-16 bg-blue-100 rounded-full mb-4">
+                    <span className="text-2xl font-bold text-blue-600">1</span>
+                  </div>
+                  <h3 className="text-xl font-semibold text-gray-900 mb-4">
+                    Preparar los Datos
+                  </h3>
+                </div>
+                
+                <div className="bg-gray-100 rounded-lg p-4 mb-6 min-h-[200px] flex items-center justify-center">
+                  <div className="text-center">
+                    <FileText size={48} className="text-gray-500 mx-auto mb-2" />
+                    <p className="text-sm text-gray-600">Archivo CSV o TXT</p>
+                  </div>
+                </div>
+                
+                <div className="text-left">
+                  <p className="text-gray-700 mb-3">
+                    Organiza tus datos de cursos en formato CSV con las siguientes columnas:
+                  </p>
+                  <ul className="text-sm text-gray-600 space-y-1">
+                    <li>• <strong>Código:</strong> TICS400</li>
+                    <li>• <strong>Nombre:</strong> Arquitectura Cloud</li>
+                    <li>• <strong>Sección:</strong> 1</li>
+                    <li>• <strong>Profesor:</strong> Juan Pérez</li>
+                    <li>• <strong>Módulos:</strong> L3-L4A-L7</li>
+                    <li>• <strong>Días:</strong> Lunes</li>
+                    <li>• <strong>Horas:</strong> 11:30-12:40</li>
+                  </ul>
+                </div>
+              </div>
+
+              {/* Paso 2 */}
+              <div className="text-center">
+                <div className="mb-6">
+                  <div className="inline-flex items-center justify-center w-16 h-16 bg-green-100 rounded-full mb-4">
+                    <span className="text-2xl font-bold text-green-600">2</span>
+                  </div>
+                  <h3 className="text-xl font-semibold text-gray-900 mb-4">
+                    Importar la Información
+                  </h3>
+                </div>
+                
+                <div className="bg-gray-100 rounded-lg p-4 mb-6 min-h-[200px] flex items-center justify-center">
+                  <div className="text-center">
+                    <Upload size={48} className="text-gray-500 mx-auto mb-2" />
+                    <p className="text-sm text-gray-600">Subir o Pegar Datos</p>
+                  </div>
+                </div>
+                
+                <div className="text-left">
+                  <p className="text-gray-700 mb-3">
+                    Puedes importar los datos de tres maneras:
+                  </p>
+                  <ul className="text-sm text-gray-600 space-y-2">
+                    <li>• <strong>Pegar texto:</strong> Copia y pega directamente en el área de texto</li>
+                    <li>• <strong>Subir archivo:</strong> Usa el botón para cargar un archivo CSV</li>
+                    <li>• <strong>Usar ejemplo:</strong> Carga datos de muestra para probar</li>
+                  </ul>
+                </div>
+              </div>
+
+              {/* Paso 3 */}
+              <div className="text-center">
+                <div className="mb-6">
+                  <div className="inline-flex items-center justify-center w-16 h-16 bg-purple-100 rounded-full mb-4">
+                    <span className="text-2xl font-bold text-purple-600">3</span>
+                  </div>
+                  <h3 className="text-xl font-semibold text-gray-900 mb-4">
+                    Cr
+                  </h3>
+                </div>
+                
+                <div className="bg-gray-100 rounded-lg p-4 mb-6 min-h-[200px] flex items-center justify-center">
+                  <div className="text-center">
+                    <GraduationCap size={48} className="text-gray-500 mx-auto mb-2" />
+                    <p className="text-sm text-gray-600">Horario Personalizado</p>
+                  </div>
+                </div>
+                
+                <div className="text-left">
+                  <p className="text-gray-700 mb-3">
+                    Una vez importados los datos, podrás:
+                  </p>
+                  <ul className="text-sm text-gray-600 space-y-2">
+                    <li>• <strong>Seleccionar cursos:</strong> Elige manualmente las secciones</li>
+                    <li>• <strong>Recomendación automática:</strong> Genera un horario óptimo</li>
+                    <li>• <strong>Simulador:</strong> Explora todas las combinaciones válidas</li>
+                    <li>• <strong>Detectar conflictos:</strong> Visualiza solapamientos de horario</li>
+                  </ul>
+                </div>
+              </div>
+
+            </div>
+          </div>
+          
+          <div className="flex justify-center p-6 border-t border-gray-200 bg-gray-50">
+            <button
+              onClick={() => setShowHelpModal(false)}
+              className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
+            >
+              Entendido
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div className="bg-white rounded-lg shadow-md p-6">
-      <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
-        <FileText size={24} />
-        Importar Datos de Cursos
-      </h2>
+      <div className="flex items-center gap-2 mb-4">
+        <h2 className="text-xl font-bold flex items-center gap-2">
+          <FileText size={24} />
+          Importar Datos de Cursos
+        </h2>
+        <button
+          onClick={() => setShowHelpModal(true)}
+          className="text-gray-500 hover:text-blue-600 transition-colors ml-2"
+          title="Ver instrucciones de uso"
+        >
+          <HelpCircle size={20} />
+        </button>
+      </div>
       
       <div className="mb-4">
         <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -154,6 +297,9 @@ export const DataImporter: React.FC<DataImporterProps> = ({ onDataImport }) => {
           </pre>
         </div>
       )}
+      
+      {/* Modal de Ayuda */}
+      <HelpModal />
     </div>
   );
 };
@@ -163,7 +309,7 @@ interface ScheduleEventProps {
   event: ScheduleEvent;
 }
 
-export const ScheduleEventComponent: React.FC<ScheduleEventProps> = ({ event }) => {
+export const ScheduleEventComponent: FC<ScheduleEventProps> = ({ event }) => {
   const [showTooltip, setShowTooltip] = useState(false);
 
   const getEventClass = () => {
@@ -233,7 +379,7 @@ interface ScheduleGridProps {
   events: ScheduleEvent[];
 }
 
-export const ScheduleGrid: React.FC<ScheduleGridProps> = ({ events }) => {
+export const ScheduleGrid: FC<ScheduleGridProps> = ({ events }) => {
   const getEventPosition = (event: ScheduleEvent) => {
     const dayIndex = DAYS.indexOf(event.day);
     const startHourIndex = HOURS.indexOf(event.startTime);
@@ -273,7 +419,7 @@ export const ScheduleGrid: React.FC<ScheduleGridProps> = ({ events }) => {
         ))}
 
         {HOURS.map((hour, hourIndex) => (
-          <React.Fragment key={hour}>
+          <Fragment key={hour}>
             <div className="border-r border-gray-200 p-1 text-xs text-gray-600 text-right pr-2 sticky left-0 bg-white z-10">
               {hour}
             </div>
@@ -284,7 +430,7 @@ export const ScheduleGrid: React.FC<ScheduleGridProps> = ({ events }) => {
                 style={{ gridColumn: dayIndex + 2, gridRow: hourIndex + 2 }}
               />
             ))}
-          </React.Fragment>
+          </Fragment>
         ))}
 
         {events.map((event, index) => {
